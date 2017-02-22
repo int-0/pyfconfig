@@ -16,3 +16,10 @@ class CannotParse(Exception):
     def __str__(self):
         raw = (' (%s)' % self.__raw) if self.__raw is not None else ''
         return 'Error parsing data%s' % raw
+
+
+class CommandError(Exception):
+    def __init__(self, msg='unknown'):
+        self.__msg = msg
+    def __str__(self):
+        return 'Ifconfig execution error: %s' % self.__msg

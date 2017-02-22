@@ -8,18 +8,79 @@ import re
 
 from errors import CannotParse
 
+def iface_to_dict_16(raw):
+    '''Convert raw data into a dict (ifconfig -2.4 version)'''
+    def int_value(variable_name):
+        '''Return a value next to a variable'''
+        try:
+            match = re.search('%s:\d+' % variable_name, raw).group(0)
+            return int(match.split(':')[1])
+        except AttributeError:
+            raise CannotParse(repr(raw))
+        except IndexError:
+            raise CannotParse(match)
+        
+    def mac_value():
+        '''Search "HWaddr XX:XX:XX:XX:XX:XX" pattern and return MAC'''
+        try:
+            match = re.search('HWaddr .*\n', raw).group(0)
+            return match.split()[1]
+        except AttributeError:
+            raise CannotParse(repr(raw))
+        except IndexError:
+            raise CannotParse(match)
 
-def iface_to_dict(raw):
-    '''Convert raw data into a dict'''
+    def ipv4_value(variable_name):
+        '''Search a XXX.XXX.XXX.XXX pattern next to a variable_name'''
+        try:
+            match = re.search(
+                '%s:\d+\.\d+\.\d+\.\d+' % variable_name,
+                raw).group(0)
+            return match.split(':')[1]
+        except AttributeError:
+            raise CannotParse(repr(raw))
+        except IndexError:
+            raise CannotParse(match)
+
+    def iface_name():
+        '''Search interface name'''
+        try:
+            return re.search('^.*Link', raw).group(0)[:-4].strip()
+        except AttributeError:
+            raise CannotParse(repr(raw))
+
+    iface = iface_name()
+    result = {
+        iface: {
+            'mtu': int_value('MTU'),
+            'txqueuelen': int_value('txqueuelen'),
+            'packets_received': int_value('RX packets'),
+            'packets_sent': int_value('TX packets')
+        }
+    }
+    try:
+        result[iface].update({'mac': mac_value()})
+    except CannotParse, e:
+        pass
+    try:
+        result[iface].update({'ipv4': ipv4_value('inet addr')})
+    except CannotParse:
+        pass
+    try:
+        result[iface].update({'netmask4': ipv4_value('Mask')})
+    except CannotParse:
+        pass
+    return result
+
+
+def iface_to_dict_24(raw):
+    '''Convert raw data into a dict (ifconfig +2.4 version)'''
     def int_value(variable_name):
         '''Return a value next to a variable'''
         try:
             match = re.search('%s\s*\d+' % variable_name, raw).group(0)
-            if '=' in match:
-                return int(match.split('=')[1])
-            else:
-                var_len = len(variable_name.split())
-                return int(match.split()[var_len])
+            var_len = len(variable_name.split())
+            return int(match.split()[var_len])
         except AttributeError:
             raise CannotParse(repr(raw))
         except IndexError:
@@ -56,7 +117,6 @@ def iface_to_dict(raw):
     result = {
         iface: {
             'mtu': int_value('mtu'),
-            'flags': int_value('flags='),
             'txqueuelen': int_value('txqueuelen'),
             'packets_received': int_value('RX packets'),
             'packets_sent': int_value('TX packets'),
@@ -79,6 +139,10 @@ def iface_to_dict(raw):
     return result
 
 
+# By default use old parsers
+iface_to_dict = iface_to_dict_16
+
+
 def split_ifaces(raw):
     '''Split a list of data into subsets of data'''
     splitted = []
@@ -91,7 +155,8 @@ def split_ifaces(raw):
             current = '%s\n' % line
         else:
             current += '%s\n' % line
-    splitted.append(current)
+    if (current is not None) and (current != '\n'):
+        splitted.append(current)
     return splitted
 
 
