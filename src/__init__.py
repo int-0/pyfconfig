@@ -124,5 +124,5 @@ class Interface(object):
 
     @mtu.setter
     def mtu(self, new_mtu):
-        _iface.set_mtu(new_mtu)
+        _iface.set_mtu(self.name, new_mtu)
         self.__refresh_statistics__()
