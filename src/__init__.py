@@ -16,7 +16,6 @@ import subprocess
 
 import logging
 _DEB = logging.debug
-logging.basicConfig(level=logging.DEBUG)
 
 from errors import *
 import _parsers as _parse
@@ -72,7 +71,6 @@ def available_interfaces():
     parsed_data = {}
     for iface_data in _parse.split_ifaces(all_iface_data):
         parsed_data.update(_parse.iface_to_dict(iface_data))
-    print parsed_data
     return parsed_data.keys()
 
 
